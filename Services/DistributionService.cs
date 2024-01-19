@@ -62,13 +62,17 @@ public class DistributionService : IDistributionService
         if (activities.Count == 0)
             return false;
 
-        var free = this.GetListOfPhotographersFromDataBase(eventId, zoneId, DateOnly.FromDateTime(activities[0].StartTime),
-            photographerId);
+        var time = this.GetListOfPhotographersFromDataBase(eventId, zoneId, DateOnly.FromDateTime(activities[0].StartTime),
+            photographerId)
+            .SelectMany(x => x.Value)
+            .SelectMany(x => x.FreeTime)
+            .OrderBy(x => x.StartTime)
+            .ToList();
 
-        if (free.Count == 0)
+        if (time.Count == 0)
             return false;
 
-        return CheckPhotographersNumber(activities, free.SelectMany(x => x.Value).ToList());
+        return CheckPhotographersNumber(activities, time);
     }
     
     private List<ActivityInfo> GetListOfActivitiesFromDataBase(long eventId, long zoneId)
@@ -503,12 +507,8 @@ public class DistributionService : IDistributionService
         return resultNumber;
     }
 
-    private static List<int> GetHistogramOfResourcesProvided(List<PhotographerInfo> photographers)
+    private static List<int> GetHistogramOfResourcesProvided(List<Time> listOfPhotographersFreeTime)
     {
-        var listOfPhotographersFreeTime = photographers.SelectMany(x => x.FreeTime)
-            .OrderBy(x => x.StartTime)
-            .ToList();
-        
         var resultNumber = new List<int>();
         var startTime = listOfPhotographersFreeTime.First().StartTime.Date;
         var endTime = startTime.AddDays(1);
@@ -531,7 +531,7 @@ public class DistributionService : IDistributionService
         return resultNumber;
     }
 
-    private static bool CheckPhotographersNumber(List<ActivityInfo> activities, List<PhotographerInfo> photographers)
+    private static bool CheckPhotographersNumber(List<ActivityInfo> activities, List<Time> photographers)
     {
         var histogramOfActivities = GetHistogramOfRequiredResourcesForActivities(activities);
         var histogramOfPhotographers = GetHistogramOfResourcesProvided(photographers);
